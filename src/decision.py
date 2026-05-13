@@ -10,6 +10,10 @@ ANNOUNCE = "ANNOUNCE"
 REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
 DENY = "DENY"
 
+ALLOW_SCORE_THRESHOLD = 90.0
+ANNOUNCE_SCORE_THRESHOLD = 70.0
+REQUIRE_APPROVAL_SCORE_THRESHOLD = 50.0
+
 
 def is_transaction_valid(transaction: Dict[str, Any]) -> bool:
     return transaction.get("amount_usd", 0) > 0
@@ -54,11 +58,11 @@ def make_decision(
 
     score = trust_result["trust_score"]
 
-    if score >= 90:
+    if score >= ALLOW_SCORE_THRESHOLD:
         action = ALLOW
-    elif score >= 70:
+    elif score >= ANNOUNCE_SCORE_THRESHOLD:
         action = ANNOUNCE
-    elif score >= 50:
+    elif score >= REQUIRE_APPROVAL_SCORE_THRESHOLD:
         action = REQUIRE_APPROVAL
     else:
         action = DENY
