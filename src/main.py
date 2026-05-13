@@ -1,5 +1,8 @@
+# src/main.py
+
 import json
-from trust_score import evaluate_trust_score
+
+from runtime import process_transaction
 
 
 transaction = {
@@ -10,7 +13,7 @@ transaction = {
 }
 
 
-result = evaluate_trust_score(
+result = process_transaction(
     user_id="user_001",
     vendor_id="vendor_001",
     transaction=transaction,
