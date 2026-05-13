@@ -1,45 +1,105 @@
-# trustmodel.py
+# src/trust_score.py
 
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Any, Dict
+import json
 
-def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+
+USER_FILE = DATA_DIR / "users.json"
+VENDOR_FILE = DATA_DIR / "vendors.json"
+
+MIN_SCORE = 0.0
+MAX_SCORE = 100.0
+
+IDENTITY_WEIGHT = 0.30
+REPUTATION_WEIGHT = 0.25
+BEHAVIOR_WEIGHT = 0.30
+USER_POLICY_WEIGHT = 0.15
+
+
+def clamp(
+    value: float,
+    min_value: float = MIN_SCORE,
+    max_value: float = MAX_SCORE,
+) -> float:
     return max(min_value, min(max_value, value))
 
 
-def calculate_identity_score(vendor: Dict[str, Any], user: Dict[str, Any]) -> float:
-    # const
-    VERIFIED = 20
-    WHITELISTED = 10
-    TRUSTED = 20
-    ADDRESS_CHANGED = -30
+def load_json(file_path: Path) -> Dict[str, Any]:
+    with file_path.open("r", encoding="utf-8") as file:
+        return json.load(file)
 
-    # reject if blacklisted or blocked
-    if vendor.get("blacklisted", False):
-        return 0
 
-    if vendor.get("vendor_id") in user.get("blocked_vendors", []):
-        return 0
+def load_user(user_id: str) -> Dict[str, Any]:
+    user = load_json(USER_FILE)
 
-    # calculate identity score
-    score = 50
+    if user.get("user_id") != user_id:
+        raise ValueError(f"User not found: {user_id}")
+
+    return user
+
+
+def load_vendor(vendor_id: str) -> Dict[str, Any]:
+    vendor = load_json(VENDOR_FILE)
+
+    if vendor.get("vendor_id") != vendor_id:
+        raise ValueError(f"Vendor not found: {vendor_id}")
+
+    return vendor
+
+
+def is_blacklisted(user: Dict[str, Any], vendor: Dict[str, Any]) -> bool:
+    vendor_id = vendor.get("vendor_id")
+
+    return (
+        vendor.get("blacklisted", False)
+        or vendor_id in user.get("blocked_vendors", [])
+    )
+
+
+def validate_transaction(
+    user: Dict[str, Any],
+    vendor: Dict[str, Any],
+    transaction: Dict[str, Any],
+) -> bool:
+    if not user or not vendor:
+        return False
+
+    if transaction.get("amount_usd", 0) <= 0:
+        return False
+
+    return True
+
+
+def calculate_identity(
+    user: Dict[str, Any],
+    vendor: Dict[str, Any],
+) -> float:
+    if is_blacklisted(user, vendor):
+        return 0.0
+
+    score = 50.0
+    vendor_id = vendor.get("vendor_id")
 
     if vendor.get("verified", False):
-        score += VERIFIED
+        score += 20
 
     if vendor.get("whitelisted", False):
-        score += WHITELISTED
+        score += 10
 
-    if vendor.get("vendor_id") in user.get("trusted_vendors", []):
-        score += TRUSTED
+    if vendor_id in user.get("trusted_vendors", []):
+        score += 20
 
     if vendor.get("address_changed_recently", False):
-        score -= ADDRESS_CHANGED
+        score -= 30
 
     return clamp(score)
 
 
-def calculate_reputation_score(vendor: Dict[str, Any]) -> float:
-    # use Bayesian average to calculate reputation score
+def calculate_reputation(vendor: Dict[str, Any]) -> float:
     success_count = vendor.get("success_count", 0)
     fail_count = vendor.get("fail_count", 0)
     dispute_count = vendor.get("dispute_count", 0)
@@ -47,305 +107,142 @@ def calculate_reputation_score(vendor: Dict[str, Any]) -> float:
     total_count = success_count + fail_count + dispute_count
 
     score = 100 * (success_count + 3) / (total_count + 6)
-
     score -= fail_count * 1.5
     score -= dispute_count * 5
 
     return clamp(score)
 
 
-def calculate_behavior_score(vendor: Dict[str, Any], transaction: Dict[str, Any]) -> float:
-    # const
-    INVALID_ADDRESS = -50
-    INVALID_SERVICE_ID = -30
-    OVERPRICED = -30
+def calculate_behavior(
+    user: Dict[str, Any],
+    vendor: Dict[str, Any],
+    transaction: Dict[str, Any],
+) -> float:
+    score = 100.0
 
-    # reject if there are phishing or prompt injection reports
     if vendor.get("has_phishing_report", False):
-        return 0
+        return 0.0
 
     if vendor.get("has_prompt_injection_report", False):
-        return 0
-
-    # calculate behavior score based on transaction details
-    score = 100
+        return 0.0
 
     receiver_address = transaction.get("receiver_address", "").lower()
     valid_addresses = [
-        addr.lower() for addr in vendor.get("receiver_addresses", [])
+        address.lower()
+        for address in vendor.get("receiver_addresses", [])
     ]
 
     if receiver_address not in valid_addresses:
-        score -= INVALID_ADDRESS
+        score -= 50
 
     service_id = transaction.get("service_id")
     valid_service_ids = vendor.get("service_ids", [])
 
     if service_id not in valid_service_ids:
-        score -= INVALID_SERVICE_ID
+        score -= 30
 
     amount_usd = transaction.get("amount_usd", 0)
     max_reasonable_price = vendor.get("max_reasonable_price_usd", 0)
 
     if max_reasonable_price > 0 and amount_usd > max_reasonable_price:
-        score -= OVERPRICED
+        score -= 30
 
     return clamp(score)
 
 
-def calculate_user_policy_score(vendor: Dict[str, Any], user: Dict[str, Any], transaction: Dict[str, Any]) -> float:
-    # const
-    AUTO_ALLOW_UNDER = 1
-    ANNOUNCE_UNDER = 20
-    REQUIRE_APPROVAL_ABOVE = 20
-
-    vendor_id = vendor.get("vendor_id")
-    amount_usd = transaction.get("amount_usd", 0)
-
-    budget_policy = user.get("budget_policy", {})
-    spending_state = user.get("spending_state", {})
-
-    if vendor_id in user.get("blocked_vendors", []):
-        return 0
-
-    daily_total_budget = budget_policy.get("daily_total_budget_usd", 0)
-    spent_today = spending_state.get("spent_today_usd", 0)
-
-    if spent_today + amount_usd > daily_total_budget:
-        return 0
-
-    per_vendor_budget = budget_policy.get("per_vendor_daily_budget_usd", 0)
-    per_vendor_spending_today = spending_state.get("per_vendor_spending_today", {})
-    spent_to_this_vendor = per_vendor_spending_today.get(vendor_id, 0)
-
-    if spent_to_this_vendor + amount_usd > per_vendor_budget:
-        return 30
-
-    if vendor_id in user.get("trusted_vendors", []):
-        return 100
-
-    return 70
-
-
-def calculate_trust_score(identity_score: float, reputation_score: float, behavior_score: float, user_policy_score: float) -> float:
-    # calculate overall trust score with weighted average
-    trust_score = (
-        0.30 * identity_score +
-        0.30 * reputation_score +
-        0.25 * behavior_score +
-        0.15 * user_policy_score
-    )
-
-    return clamp(trust_score)
-
-
-def decide_action(
-    trust_score: float,
-    vendor: Dict[str, Any],
+def calculate_user_policy(
     user: Dict[str, Any],
-    transaction: Dict[str, Any]
-) -> str:
-    """
-    根據 trust_score、預算、黑名單、金額決定最後 action。
-
-    回傳：
-    - ALLOW
-    - ANNOUNCE
-    - REQUIRE_APPROVAL
-    - DENY
-    """
-
-    vendor_id = vendor.get("vendor_id")
-    amount_usd = transaction.get("amount_usd", 0)
-
-    budget_policy = user.get("budget_policy", {})
-    spending_state = user.get("spending_state", {})
-
-    if vendor.get("blacklisted", False):
-        return "DENY"
-
-    if vendor_id in user.get("blocked_vendors", []):
-        return "DENY"
-
-    if vendor.get("has_phishing_report", False):
-        return "DENY"
-
-    if vendor.get("has_prompt_injection_report", False):
-        return "DENY"
-
-    daily_total_budget = budget_policy.get("daily_total_budget_usd", 0)
-    spent_today = spending_state.get("spent_today_usd", 0)
-
-    if spent_today + amount_usd > daily_total_budget:
-        return "DENY"
-
-    per_vendor_budget = budget_policy.get("per_vendor_daily_budget_usd", 0)
-    per_vendor_spending_today = spending_state.get("per_vendor_spending_today", {})
-    spent_to_this_vendor = per_vendor_spending_today.get(vendor_id, 0)
-
-    if spent_to_this_vendor + amount_usd > per_vendor_budget:
-        return "REQUIRE_APPROVAL"
-
-    auto_allow_under = budget_policy.get("auto_allow_under_usd", 1)
-    announce_under = budget_policy.get("announce_under_usd", 20)
-    require_approval_above = budget_policy.get("require_approval_above_usd", 20)
-
-    if trust_score >= 80 and amount_usd <= auto_allow_under:
-        return "ALLOW"
-
-    if trust_score >= 60 and amount_usd <= announce_under:
-        return "ANNOUNCE"
-
-    if amount_usd >= require_approval_above:
-        return "REQUIRE_APPROVAL"
-
-    if trust_score >= 40:
-        return "REQUIRE_APPROVAL"
-
-    return "DENY"
-
-
-def generate_reason_codes(
     vendor: Dict[str, Any],
-    user: Dict[str, Any],
     transaction: Dict[str, Any],
-    scores: Dict[str, float],
-    action: str
-) -> List[str]:
-    """
-    產生簡單 reason codes，方便 demo 時解釋為什麼做這個決策。
-    """
-
-    reasons = []
-
+) -> float:
     vendor_id = vendor.get("vendor_id")
     amount_usd = transaction.get("amount_usd", 0)
 
     budget_policy = user.get("budget_policy", {})
     spending_state = user.get("spending_state", {})
 
-    if vendor.get("blacklisted", False) or vendor_id in user.get("blocked_vendors", []):
-        reasons.append("VENDOR_BLOCKED")
+    if is_blacklisted(user, vendor):
+        return 0.0
 
-    if vendor.get("verified", False):
-        reasons.append("VENDOR_VERIFIED")
-    else:
-        reasons.append("VENDOR_NOT_VERIFIED")
-
-    if vendor_id in user.get("trusted_vendors", []):
-        reasons.append("USER_TRUSTED_VENDOR")
-
-    if scores["reputation_score"] >= 80:
-        reasons.append("GOOD_REPUTATION_HISTORY")
-    elif scores["reputation_score"] < 50:
-        reasons.append("LOW_REPUTATION_HISTORY")
-
-    receiver_address = transaction.get("receiver_address", "").lower()
-    valid_addresses = [
-        addr.lower() for addr in vendor.get("receiver_addresses", [])
-    ]
-
-    if receiver_address not in valid_addresses:
-        reasons.append("RECEIVER_ADDRESS_MISMATCH")
-
-    service_id = transaction.get("service_id")
-    if service_id not in vendor.get("service_ids", []):
-        reasons.append("UNKNOWN_SERVICE_ID")
-
-    max_reasonable_price = vendor.get("max_reasonable_price_usd", 0)
-    if max_reasonable_price > 0 and amount_usd > max_reasonable_price:
-        reasons.append("AMOUNT_EXCEEDS_REASONABLE_PRICE")
-
-    daily_total_budget = budget_policy.get("daily_total_budget_usd", 0)
+    daily_budget = budget_policy.get("daily_total_budget_usd", 0)
     spent_today = spending_state.get("spent_today_usd", 0)
 
-    if spent_today + amount_usd > daily_total_budget:
-        reasons.append("DAILY_BUDGET_EXCEEDED")
+    if spent_today + amount_usd > daily_budget:
+        return 0.0
 
     per_vendor_budget = budget_policy.get("per_vendor_daily_budget_usd", 0)
-    spent_to_this_vendor = spending_state.get(
-        "per_vendor_spending_today", {}
-    ).get(vendor_id, 0)
+    per_vendor_spending = spending_state.get("per_vendor_spending_today", {})
+    spent_to_vendor = per_vendor_spending.get(vendor_id, 0)
 
-    if spent_to_this_vendor + amount_usd > per_vendor_budget:
-        reasons.append("PER_VENDOR_BUDGET_EXCEEDED")
+    if spent_to_vendor + amount_usd > per_vendor_budget:
+        return 30.0
 
-    if action == "ALLOW":
-        reasons.append("LOW_RISK_AUTO_ALLOWED")
-    elif action == "ANNOUNCE":
-        reasons.append("TRANSACTION_ALLOWED_WITH_NOTIFICATION")
-    elif action == "REQUIRE_APPROVAL":
-        reasons.append("HUMAN_APPROVAL_REQUIRED")
-    elif action == "DENY":
-        reasons.append("TRANSACTION_DENIED")
+    if vendor_id in user.get("trusted_vendors", []):
+        return 100.0
 
-    return reasons
+    return 70.0
 
 
-def evaluate_transaction(
-    vendor: Dict[str, Any],
-    user: Dict[str, Any],
-    transaction: Dict[str, Any]
+def calculate_final_score(
+    identity: float,
+    reputation: float,
+    behavior: float,
+    user_policy: float,
+) -> float:
+    final_score = (
+        IDENTITY_WEIGHT * identity
+        + REPUTATION_WEIGHT * reputation
+        + BEHAVIOR_WEIGHT * behavior
+        + USER_POLICY_WEIGHT * user_policy
+    )
+
+    return clamp(final_score)
+
+
+def evaluate_trust_score(
+    user_id: str,
+    vendor_id: str,
+    transaction: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """
-    對一筆交易進行完整評估。
+    user = load_user(user_id)
+    vendor = load_vendor(vendor_id)
 
-    輸入：
-    - vendor: vendor.json 中的一筆 vendor
-    - user: user.json
-    - transaction: 本次交易請求
+    if not validate_transaction(user, vendor, transaction):
+        return {
+            "user_id": user_id,
+            "vendor_id": vendor_id,
+            "trust_score": 0.0,
+            "scores": {
+                "identity": 0.0,
+                "reputation": 0.0,
+                "behavior": 0.0,
+                "user_policy": 0.0,
+            },
+            "valid": False,
+            "reason": "Invalid transaction",
+        }
 
-    輸出：
-    - 各項分數
-    - trust_score
-    - action
-    - reason_codes
-    """
+    identity = calculate_identity(user, vendor)
+    reputation = calculate_reputation(vendor)
+    behavior = calculate_behavior(user, vendor, transaction)
+    user_policy = calculate_user_policy(user, vendor, transaction)
 
-    identity_score = calculate_identity_score(vendor, user)
-    reputation_score = calculate_reputation_score(vendor)
-    behavior_score = calculate_behavior_score(vendor, transaction)
-    user_policy_score = calculate_user_policy_score(vendor, user, transaction)
-
-    trust_score = calculate_trust_score(
-        identity_score,
-        reputation_score,
-        behavior_score,
-        user_policy_score
-    )
-
-    action = decide_action(
-        trust_score,
-        vendor,
-        user,
-        transaction
-    )
-
-    scores = {
-        "identity_score": round(identity_score, 2),
-        "reputation_score": round(reputation_score, 2),
-        "behavior_score": round(behavior_score, 2),
-        "user_policy_score": round(user_policy_score, 2),
-        "trust_score": round(trust_score, 2)
-    }
-
-    reason_codes = generate_reason_codes(
-        vendor,
-        user,
-        transaction,
-        scores,
-        action
+    final_score = calculate_final_score(
+        identity=identity,
+        reputation=reputation,
+        behavior=behavior,
+        user_policy=user_policy,
     )
 
     return {
-        "vendor_id": vendor.get("vendor_id"),
-        "vendor_name": vendor.get("name"),
-        "transaction": {
-            "service_id": transaction.get("service_id"),
-            "amount_usd": transaction.get("amount_usd"),
-            "receiver_address": transaction.get("receiver_address")
+        "user_id": user_id,
+        "vendor_id": vendor_id,
+        "trust_score": round(final_score, 2),
+        "scores": {
+            "identity": round(identity, 2),
+            "reputation": round(reputation, 2),
+            "behavior": round(behavior, 2),
+            "user_policy": round(user_policy, 2),
         },
-        "scores": scores,
-        "action": action,
-        "reason_codes": reason_codes
+        "valid": True,
     }
