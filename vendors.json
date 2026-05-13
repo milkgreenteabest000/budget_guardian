@@ -1,0 +1,23 @@
+{
+  "vendor_id": "vendor_001",
+  "name": "Trusted Summary API",
+  "domain": "api.trusted-summary.com",
+  "service_ids": [
+    "pdf_summary_v1"
+  ],
+  "receiver_addresses": [
+    "0x1111111111111111111111111111111111111111"
+  ],
+  "verified": true,
+  "whitelisted": true,
+  "blacklisted": false,
+  "typical_price_usd": 0.5,
+  "max_reasonable_price_usd": 2.0,
+  "success_count": 120,
+  "fail_count": 3,
+  "dispute_count": 1,
+  "address_changed_recently": false,
+  "has_phishing_report": false,
+  "has_prompt_injection_report": false,
+  "last_transaction_at": "2026-05-13T14:30:00+08:00"
+}

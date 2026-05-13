@@ -1,0 +1,40 @@
+{
+  "user_id": "user_001",
+
+  "smart_account": {
+    "chain_id": "eip155:8453",
+    "address": "0xBuyerSmartAccount000000000000000000000001"
+  },
+
+  "budget_policy": {
+    "daily_total_budget_usd": 30,
+    "per_vendor_daily_budget_usd": 5,
+    "auto_allow_under_usd": 1,
+    "announce_under_usd": 20,
+    "require_approval_above_usd": 20
+  },
+
+  "trusted_vendors": [
+    "vendor_001"
+  ],
+
+  "blocked_vendors": [
+    "vendor_003"
+  ],
+
+  "notification_policy": {
+    "email": "user@example.com",
+    "notify_on_announce": true,
+    "notify_on_require_approval": true,
+    "notify_on_deny": true
+  },
+
+  "spending_state": {
+    "today_date": "2026-05-13",
+    "spent_today_usd": 7.5,
+    "per_vendor_spending_today": {
+      "vendor_001": 2.5,
+      "vendor_002": 5.0
+    }
+  }
+}
