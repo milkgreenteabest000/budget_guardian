@@ -12,6 +12,62 @@ DB_PATH = "app.db"
 def get_now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
+def get_transactions_by_user(user_id: str) -> list[Dict[str, Any]]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM transactions
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        """,
+        (user_id,),
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+def get_all_transactions() -> list[Dict[str, Any]]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM transactions
+        ORDER BY created_at DESC
+        """
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+def get_pending_approvals() -> list[Dict[str, Any]]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM approvals
+        WHERE status = 'PENDING'
+        ORDER BY created_at ASC
+        """
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
 
 def save_transaction(
     user_id: str,
@@ -51,6 +107,32 @@ def save_transaction(
     conn.commit()
     conn.close()
 
+def update_approval_status(transaction_id: str, status: str) -> None:
+    now = get_now()
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        UPDATE approvals
+        SET status = ?, updated_at = ?
+        WHERE transaction_id = ?
+        """,
+        (status, now, transaction_id),
+    )
+
+    cursor.execute(
+        """
+        UPDATE transactions
+        SET status = ?
+        WHERE transaction_id = ?
+        """,
+        (status, transaction_id),
+    )
+
+    conn.commit()
+    conn.close()
 
 def save_decision(
     transaction_id: str,

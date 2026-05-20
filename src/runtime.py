@@ -1,6 +1,7 @@
 # src/runtime.py
 
 from typing import Any, Dict
+from uuid import uuid4
 
 from data_loader import load_user, load_vendor
 from decision import make_decision
@@ -12,6 +13,9 @@ def process_transaction(
     vendor_id: str,
     transaction: Dict[str, Any],
 ) -> Dict[str, Any]:
+    if "transaction_id" not in transaction:
+        transaction["transaction_id"] = f"tx_{uuid4().hex}"
+
     user = load_user(user_id)
     vendor = load_vendor(vendor_id)
 
@@ -22,7 +26,7 @@ def process_transaction(
     )
 
     action = decision_result["action"]
-    transaction_id = transaction.get("transaction_id")
+    transaction_id = transaction["transaction_id"]
 
     save_transaction(
         user_id=user_id,

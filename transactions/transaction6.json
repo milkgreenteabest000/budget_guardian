@@ -1,0 +1,5 @@
+{
+  "service_id": "pdf_summary_v1",
+  "amount_usd": 0.8,
+  "payment_reason": "Payment request missing receiver address"
+}

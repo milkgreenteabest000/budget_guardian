@@ -1,0 +1,6 @@
+{
+  "service_id": "pdf_summary_v1",
+  "amount_usd": 0.8,
+  "receiver_address": "0x1111111111111111111111111111111111111111",
+  "payment_reason": "Pay for PDF summarization API"
+}
