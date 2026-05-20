@@ -1,12 +1,8 @@
-# src/data_loader.py
-
 from pathlib import Path
 from typing import Any, Dict
 import json
 
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
+from .paths import DATA_DIR
 
 USER_FILE = DATA_DIR / "users.json"
 VENDOR_FILE = DATA_DIR / "vendors.json"

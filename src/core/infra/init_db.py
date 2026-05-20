@@ -1,13 +1,13 @@
-# src/init_db.py
-
 import sqlite3
 
-
-DB_PATH = "app.db"
+from .db import DB_PATH_STR, get_connection_path
 
 
 def init_db() -> None:
-    conn = sqlite3.connect(DB_PATH)
+    path = get_connection_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(DB_PATH_STR)
     cursor = conn.cursor()
 
     cursor.execute(
