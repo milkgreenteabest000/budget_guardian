@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict
 
-from infra import notifications
-from infra.data_loader import load_user, load_vendor
-from infra.db import create_approval, save_decision, save_transaction
-from trust import REQUIRE_APPROVAL, make_decision
+from .infra import notifications
+from .infra.data_loader import load_user, load_vendor
+from .infra.db import create_approval, save_decision, save_transaction
+from .trust import REQUIRE_APPROVAL, make_decision
 
 
 def process_transaction(

@@ -1,7 +1,7 @@
 import json
 import sys
 
-from runtime import process_transaction
+from .runtime import process_transaction
 
 
 def load_transaction(path: str) -> dict:

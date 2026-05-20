@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.infra.paths import DATA_DIR
+from ...infra.paths import DATA_DIR
 
 from .models import EntitlementState
 

@@ -1,4 +1,6 @@
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any, Dict, List
 
 from .trust_score import evaluate_trust_score, is_blacklisted
 
@@ -43,7 +45,7 @@ def get_action_by_score(score: float) -> str:
         return DENY
 
 
-def apply_risk_override(action: str, risk_flags: list[str]) -> str:
+def apply_risk_override(action: str, risk_flags: List[str]) -> str:
     risk_flag_set = set(risk_flags)
 
     if risk_flag_set & DENY_RISK_FLAGS:
@@ -70,11 +72,7 @@ def make_decision(
                 "behavior": 0.0,
                 "user_policy": 0.0,
             },
-<<<<<<< HEAD:src/decision.py
             "risk_flags": ["INVALID_TRANSACTION"],
-=======
-            "risk_flags": [],
->>>>>>> 18ddb5d809c7f041b78824538860ac71f0dd36d6:src/core/trust/decision.py
             "action": DENY,
             "reason": "INVALID_TRANSACTION",
         }
