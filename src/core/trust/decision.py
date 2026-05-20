@@ -1,8 +1,6 @@
-# src/decision.py
-
 from typing import Any, Dict
 
-from trust_score import evaluate_trust_score, is_blacklisted
+from .trust_score import evaluate_trust_score, is_blacklisted
 
 
 ALLOW = "ALLOW"
@@ -33,6 +31,7 @@ def make_decision(
                 "behavior": 0.0,
                 "user_policy": 0.0,
             },
+            "risk_flags": [],
             "action": DENY,
             "reason": "INVALID_TRANSACTION",
         }
@@ -46,6 +45,7 @@ def make_decision(
                 "behavior": 0.0,
                 "user_policy": 0.0,
             },
+            "risk_flags": ["BLACKLISTED_VENDOR"],
             "action": DENY,
             "reason": "BLACKLISTED_VENDOR",
         }
