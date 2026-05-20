@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from data_loader import load_user, load_vendor
 from decision import make_decision
+from db import save_transaction, save_decision, create_approval
 
 
 def process_transaction(
@@ -19,6 +20,24 @@ def process_transaction(
         vendor=vendor,
         transaction=transaction,
     )
+
+    action = decision_result["action"]
+    transaction_id = transaction.get("transaction_id")
+
+    save_transaction(
+        user_id=user_id,
+        vendor_id=vendor_id,
+        transaction=transaction,
+        status=action,
+    )
+
+    save_decision(
+        transaction_id=transaction_id,
+        decision_result=decision_result,
+    )
+
+    if action == "REQUIRE_APPROVAL":
+        create_approval(transaction_id)
 
     return {
         "user_id": user_id,

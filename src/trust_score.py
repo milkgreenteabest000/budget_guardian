@@ -1,6 +1,6 @@
 # src/trust_score.py
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 
 MIN_SCORE = 0.0
@@ -141,6 +141,67 @@ def calculate_user_policy(
     return 70.0
 
 
+def collect_risk_flags(
+    user: Dict[str, Any],
+    vendor: Dict[str, Any],
+    transaction: Dict[str, Any],
+) -> List[str]:
+    risk_flags = []
+
+    vendor_id = vendor.get("vendor_id")
+    amount_usd = transaction.get("amount_usd", 0)
+
+    if is_blacklisted(user, vendor):
+        risk_flags.append("BLACKLISTED_VENDOR")
+
+    if vendor.get("address_changed_recently", False):
+        risk_flags.append("ADDRESS_CHANGED_RECENTLY")
+
+    if vendor.get("has_phishing_report", False):
+        risk_flags.append("HAS_PHISHING_REPORT")
+
+    if vendor.get("has_prompt_injection_report", False):
+        risk_flags.append("HAS_PROMPT_INJECTION_REPORT")
+
+    receiver_address = transaction.get("receiver_address", "").lower()
+    valid_addresses = [
+        address.lower()
+        for address in vendor.get("receiver_addresses", [])
+    ]
+
+    if receiver_address not in valid_addresses:
+        risk_flags.append("UNKNOWN_RECEIVER_ADDRESS")
+
+    service_id = transaction.get("service_id")
+    valid_service_ids = vendor.get("service_ids", [])
+
+    if service_id not in valid_service_ids:
+        risk_flags.append("UNKNOWN_SERVICE_ID")
+
+    max_reasonable_price = vendor.get("max_reasonable_price_usd", 0)
+
+    if max_reasonable_price > 0 and amount_usd > max_reasonable_price:
+        risk_flags.append("AMOUNT_EXCEEDS_MAX_REASONABLE_PRICE")
+
+    budget_policy = user.get("budget_policy", {})
+    spending_state = user.get("spending_state", {})
+
+    daily_budget = budget_policy.get("daily_total_budget_usd", 0)
+    spent_today = spending_state.get("spent_today_usd", 0)
+
+    if spent_today + amount_usd > daily_budget:
+        risk_flags.append("DAILY_BUDGET_EXCEEDED")
+
+    per_vendor_budget = budget_policy.get("per_vendor_daily_budget_usd", 0)
+    per_vendor_spending = spending_state.get("per_vendor_spending_today", {})
+    spent_to_vendor = per_vendor_spending.get(vendor_id, 0)
+
+    if spent_to_vendor + amount_usd > per_vendor_budget:
+        risk_flags.append("PER_VENDOR_DAILY_BUDGET_EXCEEDED")
+
+    return risk_flags
+
+
 def evaluate_trust_score(
     user: Dict[str, Any],
     vendor: Dict[str, Any],
@@ -160,6 +221,12 @@ def evaluate_trust_score(
 
     trust_score = clamp(trust_score)
 
+    risk_flags = collect_risk_flags(
+        user=user,
+        vendor=vendor,
+        transaction=transaction,
+    )
+
     return {
         "trust_score": round(trust_score, 2),
         "scores": {
@@ -168,4 +235,5 @@ def evaluate_trust_score(
             "behavior": round(behavior, 2),
             "user_policy": round(user_policy, 2),
         },
+        "risk_flags": risk_flags,
     }
