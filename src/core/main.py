@@ -1,19 +1,21 @@
-"""啟動程式：建立或接收一筆 transaction，呼叫 runtime.process_transaction。"""
-
-from __future__ import annotations
-
 import json
+import sys
 
-from .runtime import process_transaction
+from runtime import process_transaction
 
 
-def main() -> None:
-    transaction = {
-        "service_id": "pdf_summary_v1",
-        "amount_usd": 0.8,
-        "receiver_address": "0x1111111111111111111111111111111111111111",
-        "payment_reason": "Pay for PDF summarization API",
-    }
+def load_transaction(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python -m src.main <transaction_json_path>")
+        sys.exit(1)
+
+    transaction_path = sys.argv[1]
+    transaction = load_transaction(transaction_path)
 
     result = process_transaction(
         user_id="user_001",
@@ -21,8 +23,4 @@ def main() -> None:
         transaction=transaction,
     )
 
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()
+    print(result)

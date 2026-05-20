@@ -1,6 +1,6 @@
 # src/admin.py
 
-from db import get_all_transactions, get_pending_approvals
+from infra.db import get_all_transactions, get_pending_approvals
 
 
 def print_transactions() -> None:
