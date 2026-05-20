@@ -1,5 +1,3 @@
-# src/trust_score.py
-
 from typing import Any, Dict, List
 
 

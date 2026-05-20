@@ -1,12 +1,18 @@
-# src/db.py
-
 import json
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict
 
+from .paths import DATA_DIR
 
-DB_PATH = "app.db"
+
+def get_connection_path() -> Path:
+    """SQLite 檔案路徑（與 JSON 資料同放在 data/）。"""
+    return DATA_DIR / "app.db"
+
+
+DB_PATH_STR = str(get_connection_path())
 
 
 def get_now() -> str:
@@ -75,7 +81,8 @@ def save_transaction(
     transaction: Dict[str, Any],
     status: str,
 ) -> None:
-    conn = sqlite3.connect(DB_PATH)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH_STR)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -138,7 +145,8 @@ def save_decision(
     transaction_id: str,
     decision_result: Dict[str, Any],
 ) -> None:
-    conn = sqlite3.connect(DB_PATH)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH_STR)
     cursor = conn.cursor()
 
     scores = decision_result.get("scores", {})
@@ -179,7 +187,8 @@ def save_decision(
 def create_approval(transaction_id: str) -> None:
     now = get_now()
 
-    conn = sqlite3.connect(DB_PATH)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH_STR)
     cursor = conn.cursor()
 
     cursor.execute(

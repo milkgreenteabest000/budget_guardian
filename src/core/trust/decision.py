@@ -1,8 +1,6 @@
-# src/decision.py
-
 from typing import Any, Dict
 
-from trust_score import evaluate_trust_score, is_blacklisted
+from .trust_score import evaluate_trust_score, is_blacklisted
 
 
 ALLOW = "ALLOW"
@@ -72,7 +70,11 @@ def make_decision(
                 "behavior": 0.0,
                 "user_policy": 0.0,
             },
+<<<<<<< HEAD:src/decision.py
             "risk_flags": ["INVALID_TRANSACTION"],
+=======
+            "risk_flags": [],
+>>>>>>> 18ddb5d809c7f041b78824538860ac71f0dd36d6:src/core/trust/decision.py
             "action": DENY,
             "reason": "INVALID_TRANSACTION",
         }

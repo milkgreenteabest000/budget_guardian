@@ -1,0 +1,8 @@
+data/app.db
+app.db
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
