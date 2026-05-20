@@ -2,7 +2,8 @@
 
 | 檔案 | 說明 |
 |------|------|
-| **SERVICES.md** | **Onboarding／攔截／信任分數** 三塊心智模型與現有程式對照 |
-| **ARCHITECTURE.md** | 系統架構；Python 套件 **`core`**（`src/core/`） |
+| **SERVICES.md** | Onboarding／攔截／信任分數三塊心智模型與程式對照 |
+| **ARCHITECTURE.md** | 系統架構、`core` 套件（`src/core/`）目錄與資料流 |
+| **CANFLY.md** | 為何另有 **`canfly/`** 目錄、上架流程與檔案對照 |
 
 後續可於本目錄新增協定規格（例如對外 BG API、402 流程），與程式碼分離閱讀。

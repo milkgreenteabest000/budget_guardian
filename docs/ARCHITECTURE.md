@@ -76,7 +76,7 @@ flowchart TB
 
 | 路徑 | 責任 |
 |------|------|
-| **docs/** | 架構與協定類文件（本檔與後續 PROTOCOL 等） |
+| **docs/** | 架構與協定類文件（含 **CANFLY.md**、本檔與後續 PROTOCOL 等） |
 | **canfly/** | **上架用**：Skill 說明、`memory.md` 注入範本、給 Canfly 打包／審核看的文字資產 |
 | **data/** | **靜態或占位資料**：使用者／賣家 profile、Canfly 權益占位檔 |
 | **src/** | **Python 套件根**：可安裝套件 `core`（見 **pyproject.toml**） |
@@ -85,7 +85,7 @@ flowchart TB
 
 | 路徑 | 責任 |
 |------|------|
-| **canfly/README.md** | 上架資料夾用途說明 |
+| **canfly/README.md** | 精簡導覽；完整流程見 **[CANFLY.md](CANFLY.md)** |
 | **canfly/skill/** | Skill 描述、之後接官方要求的 manifest／結構 |
 | **canfly/templates/** | 使用者同意後欲寫入 `memory.md` 的**範本內容**（規範 Agent 行為敘述） |
 
@@ -222,6 +222,6 @@ flowchart LR
 | 文件 | 用途 |
 |------|------|
 | **docs/SERVICES.md** | **Onboarding／Interceptor／Trust** 三服務心智模型與程式對照 |
-| **README.md（repo 根目錄）** | 專案簡介與目錄速覽 |
-| **canfly/README.md** | 上架資料夾說明 |
+| **README.md（repo 根目錄）** | 專案簡介、安裝指令、文件入口 |
+| **docs/CANFLY.md** | **`canfly/`** 上架資產用途與流程 |
 | （待補）**docs/PROTOCOL.md** | HTTP 402、簽章、錯誤碼等對外協定 |
