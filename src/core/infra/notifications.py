@@ -430,7 +430,6 @@ def _send_email(
             "error": str(exc),
         }
 
-
 def apply_decision_side_effects(
     *,
     user_id: str,

@@ -1,9 +1,8 @@
-# Canfly 端「首次授權 md → 權益 → 是否啟用攔截／BG」流程骨架（佔位）。
-
 from __future__ import annotations
 
 from . import entitlement, interception, onboarding
 from .models import AgentGateResult, MdConsentState
+from .state_store import get_agent
 
 
 def run_canfly_agent_gate(
@@ -12,12 +11,6 @@ def run_canfly_agent_gate(
     *,
     md_consent_granted: bool | None = None,
 ) -> AgentGateResult:
-    """
-    佔位流程：
-    1) 若無購買權益 → 不啟用攔截（引導購買／試用）。
-    2) 若有權益但尚未記錄 md 授權 → 回 onboarding（請使用者同意改 memory.md）。
-    3) 若權益 + 授權皆備 → interception / bgaas_hooks 標記為 True（實作 TODO）。
-    """
     ent = entitlement.load_entitlement(agent_id, user_id)
     notes: list[str] = []
 
@@ -29,18 +22,29 @@ def run_canfly_agent_gate(
             "entitlement": ent,
             "interception_enabled": False,
             "bgaas_hooks_enabled": False,
-            "notes": notes + ["PLACEHOLDER: no entitlement, skip hooks"],
+            "notes": notes + ["no entitlement: purchase required"],
         }
 
-    md: MdConsentState = {"allowed": False, "recorded_at": None}
+    rec = get_agent(agent_id)
+    md: MdConsentState = {
+        "allowed": bool(rec.get("md_consent", {}).get("allowed")),
+        "recorded_at": rec.get("md_consent", {}).get("recorded_at"),
+    }
+
     if md_consent_granted is True:
-        md = {"allowed": True, "recorded_at": None}
+        onboarding.grant_md_consent(agent_id, user_id, allowed=True)
+        rec = get_agent(agent_id)
+        md = {
+            "allowed": bool(rec.get("md_consent", {}).get("allowed")),
+            "recorded_at": rec.get("md_consent", {}).get("recorded_at"),
+        }
     elif md_consent_granted is False:
+        onboarding.grant_md_consent(agent_id, user_id, allowed=False)
         md = {"allowed": False, "recorded_at": None}
 
     if not md.get("allowed"):
-        notes.append("PLACEHOLDER: need memory.md edit consent (first purchase)")
-        _ = onboarding.prompt_md_edit_authorization(agent_id, user_id)
+        notes.append("onboarding: md consent required")
+        onboarding.prompt_md_edit_authorization(agent_id, user_id)
         return {
             "agent_id": agent_id,
             "user_id": user_id,
@@ -51,9 +55,8 @@ def run_canfly_agent_gate(
             "notes": notes,
         }
 
-    notes.append("PLACEHOLDER: hooks would register here")
-    _ = interception.should_intercept_request(agent_id, "GET", "https://example.invalid")
-
+    _ = interception.should_intercept_request(agent_id, "GET", "https://api.example/paid")
+    notes.append("interception and BG hooks enabled")
     return {
         "agent_id": agent_id,
         "user_id": user_id,
@@ -61,5 +64,5 @@ def run_canfly_agent_gate(
         "entitlement": ent,
         "interception_enabled": True,
         "bgaas_hooks_enabled": True,
-        "notes": notes + ["PLACEHOLDER: interception + BG API wiring"],
+        "notes": notes,
     }

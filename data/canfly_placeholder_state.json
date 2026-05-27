@@ -1,5 +1,15 @@
 {
-  "_comment": "佔位：之後存放 Canfly agent/user 的購買與 md 授權狀態",
-  "entitlements": [],
-  "md_consents": []
+  "agents": {
+    "agent_demo": {
+      "entitlement": {
+        "active": true,
+        "product_sku": "budget_guardian_sku",
+        "expires_at": null
+      },
+      "md_consent": {
+        "allowed": true,
+        "recorded_at": "2026-05-27T08:11:36.861215+00:00"
+      }
+    }
+  }
 }

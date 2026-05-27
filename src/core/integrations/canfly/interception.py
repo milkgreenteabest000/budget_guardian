@@ -1,38 +1,45 @@
-# Agent 對外 HTTP／付費意圖的攔截掛勾（佔位）。
-
 from __future__ import annotations
 
 from typing import Any
 
+import httpx
 
-def should_intercept_request(
-    agent_id: str,
-    method: str,
-    url: str,
-    headers: dict[str, str] | None = None,
-) -> dict[str, Any]:
-    """
-    TODO: 依 Canfly runtime 能力，判斷是否需先走 BG（例如 402、付費網域）。
-    """
+from .config import BG_API_BASE_URL
+
+
+def should_intercept_request(agent_id: str, method: str, url: str) -> dict[str, Any]:
+    _ = agent_id
+    paid_hint = "402" in url or "payment" in url.lower()
     return {
-        "intercept": False,
-        "agent_id": agent_id,
-        "method": method,
+        "intercept": paid_hint or method.upper() in {"POST", "PUT"},
+        "reason": "outbound payment or mutating request",
         "url": url,
-        "message": "PLACEHOLDER: interception policy",
     }
 
 
-def before_outbound_request(
-    agent_id: str,
-    context: dict[str, Any],
+def preflight_authorize(
+    *,
+    user_id: str,
+    vendor_id: str,
+    intent: dict[str, Any],
+    force_after_approval: bool = False,
 ) -> dict[str, Any]:
-    """
-    TODO: 在實際送出前呼叫 bgaas.authorize（或快取），必要時改寫 headers。
-    """
-    return {
-        "allow": True,
-        "agent_id": agent_id,
-        "context_keys": list(context.keys()),
-        "message": "PLACEHOLDER: pre-flight BG check",
+    """呼叫本機 BGaaS POST /authorize。"""
+    payload = {
+        "user_id": user_id,
+        "vendor_id": vendor_id,
+        "intent": intent,
+        "force_after_approval": force_after_approval,
     }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(f"{BG_API_BASE_URL}/authorize", json=payload)
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as exc:
+        return {
+            "decision": "DENY",
+            "trust_score": 0.0,
+            "signature": None,
+            "error": str(exc),
+        }

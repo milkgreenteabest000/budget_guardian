@@ -1,5 +1,6 @@
 data/app.db
 app.db
+.env
 __pycache__/
 *.py[cod]
 *.egg-info/

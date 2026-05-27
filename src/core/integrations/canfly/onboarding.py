@@ -1,30 +1,42 @@
-# 首次安裝／購買：向使用者請求「是否可修改 memory.md」（佔位）。
-
 from __future__ import annotations
 
 from typing import Any
 
+from .state_store import get_agent, load_state, save_state, _now
+
 
 def prompt_md_edit_authorization(agent_id: str, user_id: str | None) -> dict[str, Any]:
-    """
-    TODO: 觸發 Canfly UI / Skill 流程，請使用者授權修改 memory.md。
-    回傳結構之後對齊 Canfly API。
-    """
+    _ = user_id
     return {
         "agent_id": agent_id,
-        "user_id": user_id,
-        "consent_status": "PENDING",
-        "message": "PLACEHOLDER: ask user to allow editing memory.md",
+        "prompt": "Allow Budget Guardian to update memory.md with payment governance rules?",
+        "status": "PENDING",
     }
 
 
-def apply_memory_bootstrap_patch(agent_id: str, user_id: str | None) -> dict[str, Any]:
-    """
-    TODO: consent 通過後，寫入 memory.md 片段（規則、402 行為、呼叫 BG 等）。
-    """
+def grant_md_consent(agent_id: str, user_id: str | None, *, allowed: bool = True) -> dict[str, Any]:
+    _ = user_id
+    state = load_state()
+    agent = state.setdefault("agents", {}).setdefault(agent_id, {})
+    agent["md_consent"] = {
+        "allowed": allowed,
+        "recorded_at": _now() if allowed else None,
+    }
+    save_state(state)
     return {
+        "ok": True,
         "agent_id": agent_id,
-        "user_id": user_id,
-        "patched": False,
-        "message": "PLACEHOLDER: patch memory.md after consent",
+        "md_consent": agent["md_consent"],
+    }
+
+
+def apply_memory_template(agent_id: str, user_id: str | None) -> dict[str, Any]:
+    _ = user_id
+    agent = get_agent(agent_id)
+    if not agent.get("md_consent", {}).get("allowed"):
+        return {"ok": False, "message": "md consent not granted"}
+    return {
+        "ok": True,
+        "agent_id": agent_id,
+        "message": "memory.md template would be applied (demo placeholder)",
     }

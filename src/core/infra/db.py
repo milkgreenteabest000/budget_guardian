@@ -9,14 +9,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-# db.py 位於：budget_guardian/src/core/infra/db.py
-# parents[0] = infra
-# parents[1] = core
-# parents[2] = src
-# parents[3] = budget_guardian
-BASE_DIR = Path(__file__).resolve().parents[3]
+from .paths import DATA_DIR
 
-DB_PATH = BASE_DIR / "app.db"
+DB_PATH = DATA_DIR / "app.db"
 DB_PATH_STR = str(DB_PATH)
 
 
@@ -320,6 +315,26 @@ def get_decision_by_transaction_id(
     decision["risk_flags"] = json.loads(decision.get("risk_flags", "[]"))
 
     return decision
+
+
+def get_approval_by_transaction_id(transaction_id: str) -> Optional[Dict[str, Any]]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT *
+        FROM approvals
+        WHERE transaction_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (transaction_id,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return dict(row)
 
 
 def get_pending_approvals() -> List[Dict[str, Any]]:

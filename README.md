@@ -12,9 +12,87 @@
 pip install -e .
 python -m core.infra.init_db
 python -m core.main
+python -m core.main transactions/transaction1.json
 ```
 
-對外常用匯入範例：`from core.trust import make_decision, evaluate_trust_score`；`from core import process_transaction`。
+不帶參數時會使用 `transactions/transaction1.json`。
+
+```text
+# BGaaS HTTP（另開終端）
+copy .env.example .env
+python -m core.integrations.bgaas.http_stub
+
+# 核准流程
+python -m core.approve <transaction_id> approve
+python -m core.integrations.bgaas.authorize_cli transactions/transaction4.json --after-approval --tx-id <transaction_id>
+
+# Canfly demo（需 BG HTTP 已啟動）
+python scripts/canfly_demo.py
+
+python -m core.admin
+```
+
+對外常用匯入範例：`from core.trust import make_decision, evaluate_trust_score`；`from core import process_transaction`、`authorize_payment_intent`。
+
+---
+
+## 專題進度
+
+| 項目 | 狀態 |
+|------|------|
+| 信任分數 + 裁決 + CLI + SQLite | 完成 |
+| BGaaS `POST /authorize`、`/verify`、`/health` | 完成 |
+| EIP-712 簽章（ALLOW/ANNOUNCE；REQUIRE_APPROVAL 不簽可付款 token） | 完成 |
+| 核准 CLI `core.approve` + 核准後再授權 | 完成 |
+| Canfly state / pipeline / preflight HTTP | 完成 |
+| Smart Account plugin | Phase 7 占位（`core.integrations.smart_account`） |
+
+---
+
+## Agent Payment Authorization Protocol（摘要）
+
+### Payment Intent（Agent → BG）
+
+與 `transactions/*.json` 欄位一致：
+
+| 欄位 | 說明 |
+|------|------|
+| `service_id` | 服務識別 |
+| `amount_usd` | 金額（> 0） |
+| `receiver_address` | 收款地址（可缺，觸發風險 flag） |
+| `payment_reason` | 說明 |
+
+`POST /authorize` body：
+
+```json
+{
+  "user_id": "user_001",
+  "vendor_id": "vendor_001",
+  "intent": { "service_id": "...", "amount_usd": 0.8, "receiver_address": "0x...", "payment_reason": "..." },
+  "force_after_approval": false
+}
+```
+
+### Authorization Response（BG → Agent / Provider）
+
+| 欄位 | 說明 |
+|------|------|
+| `decision` | ALLOW / ANNOUNCE / REQUIRE_APPROVAL / DENY |
+| `trust_score` | 0–100 |
+| `signature` | EIP-712 hex（僅 ALLOW、ANNOUNCE；或核准後再授權的 ALLOW） |
+| `transaction_id` | 審計用 ID |
+| `deadline` | Unix 秒 |
+| `signer_address` | BG 簽章者地址 |
+
+### HTTP 402（demo）
+
+`POST /mock-402` 回傳模擬 402 與 `WWW-Authenticate` header，Agent 應改打 `POST /authorize`。
+
+### 驗簽（Provider）
+
+`POST /verify` body：`transaction_id`, `decision`, `trust_score`, `deadline`, `signature` → `{ "valid": true/false }`。
+
+簽章環境變數見 [`.env.example`](.env.example)。
 
 ---
 
@@ -260,4 +338,4 @@ flowchart LR
 | **DENY**             | 不通過；不提供核准            |
 
 
-細節門檻與簽章格式（HTTP 402、approval token 等）可日後在本檔增補章節，或與 `**src/core/integrations/bgaas`** 內型別／註解對照。
+細節門檻見上文 **Protocol** 與 [`src/core/integrations/bgaas/eip712.py`](src/core/integrations/bgaas/eip712.py)。
